@@ -1,17 +1,33 @@
-# используем официальный Node.js
-FROM node:22-alpine
+FROM node:22-slim
 
-# рабочая директория внутри контейнера
+# Устанавливаем зависимости для Chromium
+RUN apt-get update && apt-get install -y \
+  wget \
+  gnupg \
+  ca-certificates \
+  fonts-liberation \
+  libappindicator3-1 \
+  libasound2 \
+  libatk-bridge2.0-0 \
+  libatk1.0-0 \
+  libcups2 \
+  libdbus-1-3 \
+  libgdk-pixbuf2.0-0 \
+  libnspr4 \
+  libnss3 \
+  libx11-xcb1 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  xdg-utils \
+  libgbm-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# копируем package.json и package-lock.json
 COPY package*.json ./
-
-# ставим зависимости
 RUN npm install
 
-# копируем весь код
 COPY . .
 
-# запускаем бота
 CMD ["npm", "start"]

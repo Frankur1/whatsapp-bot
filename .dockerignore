@@ -1,5 +1,5 @@
 node_modules
-npm-debug.log
 state.json
+npm-debug.log
 .DS_Store
 .wwebjs_cache

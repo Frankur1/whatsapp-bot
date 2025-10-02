@@ -3,16 +3,14 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 const schedule = require("node-schedule");
 
-// айди чата
+// 📌 Айди твоего чата (группа или личка)
 const CHAT_ID = "120363399343219217@g.us";
 
-// читаем все стихи из json
+// Загружаем все стихи
 const verses = JSON.parse(fs.readFileSync("verses.json", "utf8"));
-
-// файл для хранения текущего дня
 const stateFile = "state.json";
 
-// функция получить индекс стиха
+// Функция для получения следующего стиха
 function getNextVerseIndex() {
   let state = { index: 0 };
 
@@ -20,35 +18,38 @@ function getNextVerseIndex() {
     state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
   }
 
-  // получаем индекс
   let index = state.index;
 
-  // увеличиваем на следующий раз
-  state.index = (index + 1) % verses.length; // если кончатся — начнёт заново
+  // следующий стих
+  state.index = (index + 1) % verses.length;
 
-  // сохраняем
   fs.writeFileSync(stateFile, JSON.stringify(state));
 
   return index;
 }
 
-// клиент whatsapp
+// Инициализация клиента WhatsApp
 const client = new Client({
   authStrategy: new LocalAuth(),
+  puppeteer: {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  },
 });
 
+// При первом запуске покажет QR-код для авторизации
 client.on("qr", (qr) => {
   qrcode.generate(qr, { small: true });
 });
 
+// Когда бот готов
 client.on("ready", () => {
-  console.log("✅ Бот запущен и готов!");
+  console.log("✅ Бот запущен и готов к работе!");
 
-  // расписание на каждый день в 09:00
-  schedule.scheduleJob("0 9 * * *", async () => {
+  // CRON: каждый день в 05:00 UTC (09:00 по Еревану)
+  schedule.scheduleJob("0 5 * * *", async () => {
     const verseIndex = getNextVerseIndex();
     const verse = verses[verseIndex];
-
     try {
       await client.sendMessage(CHAT_ID, verse);
       console.log(`📤 Отправлен стих №${verseIndex + 1}`);
@@ -56,6 +57,16 @@ client.on("ready", () => {
       console.error("❌ Ошибка при отправке стиха:", err);
     }
   });
+});
+
+// Дополнительно: можно вручную вызвать стих командой "!стих"
+client.on("message", async (msg) => {
+  if (msg.body.toLowerCase() === "!стих") {
+    const verseIndex = getNextVerseIndex();
+    const verse = verses[verseIndex];
+    await msg.reply(`📖 Сегодняшний стих:\n\n${verse}`);
+    console.log(`📤 Отправлен стих по команде №${verseIndex + 1}`);
+  }
 });
 
 client.initialize();
