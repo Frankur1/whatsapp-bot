@@ -1,7 +1,8 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');   // для сохранения QR как png
+const qrcode = require('qrcode');   // генерируем QR
 const fs = require('fs');
 const cron = require('node-cron');
+const express = require('express');
 
 // Загружаем стихи
 const verses = require('./verses.json');
@@ -21,14 +22,27 @@ const client = new Client({
     },
 });
 
-// Сохраняем QR-код в файл
+// Express-сервер для показа QR
+const app = express();
+let qrImagePath = null;
+
+// Когда приходит QR-код → сохраняем как qr.png
 client.on('qr', async (qr) => {
-    console.log("📥 QR получен! Сохраняю в qr.png...");
+    console.log("📥 QR получен! Доступен по /qr.png");
     try {
-        await qrcode.toFile('qr.png', qr);
-        console.log("✅ Файл qr.png сохранён! Скачай его в Railway → Files");
+        qrImagePath = __dirname + '/qr.png';
+        await qrcode.toFile(qrImagePath, qr);
     } catch (err) {
         console.error("❌ Ошибка при сохранении QR:", err);
+    }
+});
+
+// Роут для выдачи QR-кода
+app.get('/qr.png', (req, res) => {
+    if (qrImagePath && fs.existsSync(qrImagePath)) {
+        res.sendFile(qrImagePath);
+    } else {
+        res.status(404).send("QR ещё не сгенерирован");
     }
 });
 
@@ -57,4 +71,8 @@ cron.schedule('0 9 * * *', async () => {
     dayIndex++;
 });
 
+// Запуск клиента и сервера
 client.initialize();
+app.listen(process.env.PORT || 3000, () => {
+    console.log("🌍 Сервер запущен. QR доступен по /qr.png");
+});
