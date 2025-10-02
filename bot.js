@@ -1,72 +1,60 @@
-const fs = require("fs");
-const { Client, LocalAuth } = require("whatsapp-web.js");
-const qrcode = require("qrcode-terminal");
-const schedule = require("node-schedule");
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');   // для сохранения QR как png
+const fs = require('fs');
+const cron = require('node-cron');
 
-// 📌 Айди твоего чата (группа или личка)
-const CHAT_ID = "120363399343219217@g.us";
+// Загружаем стихи
+const verses = require('./verses.json');
 
-// Загружаем все стихи
-const verses = JSON.parse(fs.readFileSync("verses.json", "utf8"));
-const stateFile = "state.json";
+// ID твоего чата
+const chatId = "120363399343219217@g.us";
 
-// Функция для получения следующего стиха
-function getNextVerseIndex() {
-  let state = { index: 0 };
-
-  if (fs.existsSync(stateFile)) {
-    state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
-  }
-
-  let index = state.index;
-
-  // следующий стих
-  state.index = (index + 1) % verses.length;
-
-  fs.writeFileSync(stateFile, JSON.stringify(state));
-
-  return index;
-}
-
-// Инициализация клиента WhatsApp
+// Настройка WhatsApp клиента
 const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  },
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+        ],
+    },
 });
 
-// При первом запуске покажет QR-код для авторизации
-client.on("qr", (qr) => {
-  qrcode.generate(qr, { small: true });
-});
-
-// Когда бот готов
-client.on("ready", () => {
-  console.log("✅ Бот запущен и готов к работе!");
-
-  // CRON: каждый день в 05:00 UTC (09:00 по Еревану)
-  schedule.scheduleJob("0 5 * * *", async () => {
-    const verseIndex = getNextVerseIndex();
-    const verse = verses[verseIndex];
+// Сохраняем QR-код в файл
+client.on('qr', async (qr) => {
+    console.log("📥 QR получен! Сохраняю в qr.png...");
     try {
-      await client.sendMessage(CHAT_ID, verse);
-      console.log(`📤 Отправлен стих №${verseIndex + 1}`);
+        await qrcode.toFile('qr.png', qr);
+        console.log("✅ Файл qr.png сохранён! Скачай его в Railway → Files");
     } catch (err) {
-      console.error("❌ Ошибка при отправке стиха:", err);
+        console.error("❌ Ошибка при сохранении QR:", err);
     }
-  });
 });
 
-// Дополнительно: можно вручную вызвать стих командой "!стих"
-client.on("message", async (msg) => {
-  if (msg.body.toLowerCase() === "!стих") {
-    const verseIndex = getNextVerseIndex();
-    const verse = verses[verseIndex];
-    await msg.reply(`📖 Сегодняшний стих:\n\n${verse}`);
-    console.log(`📤 Отправлен стих по команде №${verseIndex + 1}`);
-  }
+// Когда бот подключён
+client.on('ready', () => {
+    console.log('✅ Бот подключён к WhatsApp!');
+});
+
+// Индекс для стихов
+let dayIndex = 0;
+
+// CRON на 09:00 каждый день
+cron.schedule('0 9 * * *', async () => {
+    if (dayIndex >= verses.length) {
+        dayIndex = 0; // начинаем заново
+    }
+
+    const verse = verses[dayIndex];
+    try {
+        await client.sendMessage(chatId, verse);
+        console.log("📖 Отправлен стих:", verse);
+    } catch (err) {
+        console.error("❌ Ошибка при отправке стиха:", err);
+    }
+
+    dayIndex++;
 });
 
 client.initialize();
