@@ -1,3 +1,5 @@
 node_modules
-state.json
 npm-debug.log
+state.json
+.DS_Store
+.wwebjs_cache
