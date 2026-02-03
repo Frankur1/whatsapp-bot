@@ -54,8 +54,8 @@ client.on('ready', () => {
 // Индекс для стихов
 let dayIndex = 0;
 
-// CRON на 09:00 каждый день
-cron.schedule('0 7 * * *', async () => {
+// CRON на 10:00 каждый день
+cron.schedule('0 8 * * *', async () => {
     if (dayIndex >= verses.length) {
         dayIndex = 0; // начинаем заново
     }
