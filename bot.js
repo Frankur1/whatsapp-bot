@@ -55,7 +55,7 @@ client.on('ready', () => {
 let dayIndex = 0;
 
 // CRON на 10:00 каждый день
-cron.schedule('0 8 * * *', async () => {
+cron.schedule('0 5 * * *', async () => {
     if (dayIndex >= verses.length) {
         dayIndex = 0; // начинаем заново
     }
